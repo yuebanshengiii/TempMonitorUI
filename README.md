@@ -76,7 +76,7 @@ IndustrialControlSystem/
 
 1. **克隆仓库**
    ```bash
-   git clone https://github.com/你的用户名/IndustrialControlSystem.git
+   git clone https://github.com/yuebanshengiii/IndustrialControlSystem.git
    cd IndustrialControlSystem
    ```
 
@@ -202,6 +202,4 @@ IndustrialControlSystem/
 如有问题或建议，欢迎通过 GitHub Issues 联系。
 
 ---
-```
 
-如果 README 中的某些描述与实际代码不完全一致，你可以告诉我具体需要调整的部分。😊
