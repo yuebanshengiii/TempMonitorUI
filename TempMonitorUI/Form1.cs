@@ -1,112 +1,280 @@
-﻿using TempSimulator;
+﻿using System.Drawing;
 using System.Threading.Tasks;
-using System.Drawing;
-
+using TempSimulator;
+using OpenCvSharp;
+using OpenCvSharp.Extensions;
+using System.Runtime.InteropServices;
 
 namespace TempMonitorUI
 {
     public partial class Form1 : Form
-    //Form是基类,实现了一些基础功能
-    //:(冒号)表示Form1这个类继承Form类,就是我可以使用你的基础功能,然后我在Form1这个类里面自己写一些附属
-    //partial表示这个类Form1可以存在于多个文件中编辑,不会造成同名冲突,都是指Form1这个类,
-    //你可以移步到Form1.Designer.cs这个文件中查看
     {
+        private Heater _heater;
+        private ModbusServer _modbusServer; // 新增：持有 ModbusServer 实例
+        private ScpiServer _scpiServer;
+
+        [DllImport("MathLib.dll", CallingConvention = CallingConvention.Cdecl)]
+        private static extern double ProcessTemperature(double input);
+
+        [DllImport("MathLib.dll", CallingConvention = CallingConvention.Cdecl)]
+        private static extern int AddTwoIntegers(int a, int b);
+
+        [DllImport("MathLib.dll", CallingConvention = CallingConvention.Cdecl)]
+        private static extern double GetPi();
         public Form1()
-        //没有声明返回类型,是构造函数并不是方法,构造函数必须和类名相同
-        //在创建类的实例时自动调用,也就是new Form1()时,自动执行其中的逻辑
         {
             InitializeComponent();
-            //是WinForms设计器自动生成的一个方法,
-            //该方法属于Form1类,被定义在Form1.Designer.cs文件中,你可以移步查看
-            //在你创建控件,编辑控件的时候会自动编写InitializeComponent()方法
+
         }
 
         private void lblTemp_Click(object sender, EventArgs e)
         {
-
         }
-
-        private Heater _heater;
-        //声明有一个Heater的实例名字叫_heater只能在类方法内部访问,该实例还未创建,只是预先声明
-
-        private void btnStart_Click(object sender, EventArgs e)
+        public Heater? GetHeater()
         {
-            _heater = new Heater();
-            //创建Heater实例
-            _heater.OnTemperatureChanged += OnTemperatureChangedHandler;
-            //左边OnTemperatureChanged是类Heater中定义的事件,可以移步文件Heater.cs查看
-            //右边将OnTemperatureChangedHandler方法,订阅这个事件,也就是添加到这个事件的调用列表中
-            //当事件中的代码运行到OnTemperatureChanged?.Invoke(_currentTemp);时
-            //则会运行OnTemperatureChangedHandler方法
+            return _heater;
+        }
+        private async void btnStart_Click(object sender, EventArgs e)
+        {
+            btnStart.Enabled = false;
+            btnStop.Enabled = false;
 
-            //虽然此方法在下面代码才开始定义,但是提前订阅是没有问题的
-            //程序在运行时会先扫描类里面的所有成员,此时他就会扫描到OnTemperatureChangedHandler方法
-            //所以程序知道有这个方法,如果你把这个方法写在类外部,那么就需要指定完整的路径才可调用
+            if (_heater == null)
+            {
+                _heater = new Heater();
+                _heater.OnTemperatureChanged += OnTemperatureChangedHandler;
 
-            // 注意：Start() 里有 while(true)，直接调用会卡死 UI 线程
-            // 所以用 Task.Run 把它放到后台线程去跑
-            Task.Run(() => _heater.Start());
-            //Task.Run()是.NET的方法,作用是,让括号内的代码在后台线程执行,主线程代码也会正常往下执行
-            //() => _heater.Start(),Lambda表达式,明确表示这段代码在后台执行是一个Action委托
-            //如果直接写Task.Run(_heater.Start)也行,_heater.Start是方法组会被隐式转换为Action委托
-            //但是就不能传入参数了,比如Task.Run(_heater.Start(1000));的写法会报错,
-            //_heater.Start()表示立刻执行Start方法,而Start方法返回void,无返回值,所以Task.Run()会报错
-            //如果是Lambda表示的写法传入参数不会报错,比如() => _heater.Start(1000)还是会被切到后台执行
+                _heater.SetTarget((float)numTargetTemp.Value);
+            }
 
+            _heater.Start();
+
+            // 启动 Modbus 服务器（通过独立的 ModbusServer 类）
+            if (_modbusServer == null)
+            {
+                _modbusServer = new ModbusServer(_heater);
+                _modbusServer.Start();
+            }
+
+            numTargetTemp.Enabled = false;
             AppendLog("加热器已启动");
-            //调用AppendLog方法,该方法定义在后续代码
+            RefreshLogBox();
+
+            await Task.Delay(1000);
+            btnStop.Enabled = true;
         }
 
         private void OnTemperatureChangedHandler(float temp)
-            
         {
             this.Invoke(() =>
-            //this指当前类也就是Form1,Invoke是当前类继承类Form的基类Control的方法,把后续任务交给主线程去做
-            //为什么不像AppendLog方法那样先判断当前线程是否为主线程?
-            //因为AppendLog方法即被UI线程调用也被后台线程调用,所以要判断
             {
-                lblTemp.Text = $"{temp:F1} ℃";
-                //lblTemp控件名称,把temp转化为保留一位小数的字符串+空格+℃传给该控件的Text属性
-
-                if (temp > 80)
+                lblTemp.Text = $"当前：{temp:F1} ℃";
+                float threshold = (float)numThreshold.Value;
+                if (temp > threshold)
                 {
                     lblTemp.ForeColor = Color.Red;
-                    AppendLog($"🔥 高温警报！{temp:F1}℃");
+                    AppendLog($"🔥 高温警报！当前：{temp:F1}℃");
+                    // 每次温度变化时，保存到数据库（后台线程执行）
+                    DbHelper.Insert(temp);
                 }
                 else
                 {
                     lblTemp.ForeColor = Color.Black;
-                    AppendLog($"📡 当前温度：{temp:F1}℃");
                 }
+
+                float target = _heater?.GetTarget() ?? 25f;
+                lblDeviationDisplay.Text = $"偏差：{temp - target:F1} ℃";
             });
         }
 
         private void AppendLog(string msg)
         {
             if (rtbLog.InvokeRequired)
-            //rtbLog是富文本控件名称,rtbLog.InvokeRequired判断当前线程是否为UI线程,只有UI线程才能修改
-            //当前面的方法执行AppendLog("加热器已启动");跳转于此,显然不是主线程判断为ture
-            //执行以下代码
             {
                 rtbLog.Invoke(() => AppendLog(msg));
-                //rtbLog.Invoke();是将括号里面的任务交给主线程去做
-                //主线程执行() => AppendLog(msg),也会跳转到这个方法
                 return;
             }
-            //主线程执行AppendLog(msg)时if中条件rtbLog.InvokeRequired判断为false
-            //主线程执行以下if代码块以外,方法以内的代码,
             rtbLog.AppendText($"{DateTime.Now:HH:mm:ss} {msg}{Environment.NewLine}");
-            //向富文本控件中追加一行消息,$""表示内插字符串,编译器会解析花括号自动转化为字符串插入
-            //DateTime.Now获取当前时间;HH:mm;ss输出时:分:秒这种格式
-            //msg是AppendLog方法传入的参数msg
-            //Environment.NewLine是.NET提供的静态属性,作用是获取当前操作系统换行符
+
+            if (rtbLog.Lines.Length > 120)
+            {
+                var lines = rtbLog.Lines.Skip(rtbLog.Lines.Length - 100).ToArray();
+                rtbLog.Text = string.Join(Environment.NewLine, lines);
+            }
             rtbLog.ScrollToCaret();
-            //上一行代码会把光标置于插入字符串的末尾,这一行就是把窗口滚动到光标所在位置
+            Logger.Write(msg);
         }
 
-        private void rtbLog_TextChanged(object sender, EventArgs e)
-        {
+        private void rtbLog_TextChanged(object sender, EventArgs e) { }
 
+        private void RefreshLogBox()
+        {
+            rtbLog.Hide();
+            rtbLog.Show();
+            rtbLog.SelectionStart = rtbLog.Text.Length;
+            rtbLog.ScrollToCaret();
+        }
+
+        private async void btnStop_Click(object sender, EventArgs e)
+        {
+            btnStop.Enabled = false;
+            btnStart.Enabled = false;
+
+            if (_heater != null)
+            {
+                _heater.Stop();
+                AppendLog("加热器已停止");
+                RefreshLogBox();
+                numTargetTemp.Enabled = true;
+            }
+            else
+            {
+                AppendLog("加热器未启动");
+            }
+
+            // 停止 Modbus 服务器
+            _modbusServer?.Stop();
+            _modbusServer = null;
+
+            await Task.Delay(1000);
+            btnStart.Enabled = true;
+        }
+
+        private void numericUpDown1_ValueChanged(object sender, EventArgs e) { }
+
+        private void btnLoadHistory_Click(object sender, EventArgs e)
+        {
+            rtbLog.Clear();
+            AppendLog("📚 === 最近20条历史记录 ===");
+            var records = DbHelper.LoadLastRecords(20);
+            if (records.Count == 0)
+            {
+                AppendLog("暂无历史数据。");
+                return;
+            }
+            foreach (var (time, value) in records)
+            {
+                rtbLog.AppendText($"{time}  →  {value:F1} ℃{Environment.NewLine}");
+            }
+            rtbLog.ScrollToCaret();
+        }
+
+        private void Form1_Load_1(object sender, EventArgs e)
+        {
+            numTargetTemp.ValueChanged += (s, ev) =>
+            {
+                if (_heater != null)
+                    _heater.SetTarget((float)numTargetTemp.Value);
+            };
+        }
+
+        private void btnVision_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                // 1. 打开文件选择对话框，选择目标图片
+                using var openFileDialog = new OpenFileDialog();
+                openFileDialog.Filter = "图片文件|*.jpg;*.jpeg;*.png;*.bmp";
+                openFileDialog.Title = "请选择要定位的图片";
+
+                if (openFileDialog.ShowDialog() != DialogResult.OK)
+                    return;
+
+                string sourcePath = openFileDialog.FileName;
+                string templatePath = "template.jpg"; // 模板图片放在程序目录下
+
+                // 2. 检查模板文件是否存在
+                if (!File.Exists(templatePath))
+                {
+                    AppendLog("❌ 模板文件 template.jpg 不存在，请放在程序目录下");
+                    lblVisionResult.Text = "模板文件缺失";
+                    return;
+                }
+
+                // 3. 加载图片并执行模板匹配
+                using var source = Cv2.ImRead(sourcePath);
+                using var template = Cv2.ImRead(templatePath);
+
+                if (source.Empty() || template.Empty())
+                {
+                    AppendLog("❌ 图片加载失败");
+                    lblVisionResult.Text = "图片加载失败";
+                    return;
+                }
+
+                // 4. 模板匹配
+                using var result = new Mat();
+                Cv2.MatchTemplate(source, template, result, TemplateMatchModes.CCoeffNormed);
+
+                // 5. 找到最佳匹配位置
+                Cv2.MinMaxLoc(result, out _, out double maxVal, out _, out OpenCvSharp.Point maxLoc);
+
+                // 6. 判断匹配度阈值
+                if (maxVal > 0.8)
+                {
+                    // 在源图上画出匹配位置
+                    var rect = new OpenCvSharp.Rect(maxLoc.X, maxLoc.Y, template.Width, template.Height);
+                    Cv2.Rectangle(source, rect, new Scalar(0, 0, 255), 2);
+
+                    // 保存结果图片
+                    string outputPath = "vision_result.jpg";
+                    source.SaveImage(outputPath);
+
+                    AppendLog($"✅ 匹配成功！位置: ({maxLoc.X}, {maxLoc.Y})，匹配度: {maxVal:F2}");
+                    lblVisionResult.Text = $"坐标: ({maxLoc.X}, {maxLoc.Y})  匹配度: {maxVal:F2}";
+                    // 更新 Modbus 寄存器中的视觉坐标
+                    _modbusServer?.UpdateVisionCoords(maxLoc.X, maxLoc.Y);
+                    AppendLog($"📤 视觉坐标已发送到 Modbus");
+                }
+                else
+                {
+                    AppendLog($"❌ 匹配失败，匹配度仅 {maxVal:F2}，请检查模板图片是否匹配");
+                    lblVisionResult.Text = $"匹配失败 (匹配度 {maxVal:F2})";
+                }
+            }
+            catch (Exception ex)
+            {
+                AppendLog($"❌ 视觉处理异常: {ex.Message}");
+                lblVisionResult.Text = "处理异常";
+            }
+        }
+
+        private void btnScpiServer_Click(object sender, EventArgs e)
+        {
+            if (_scpiServer == null)
+            {
+                _scpiServer = new ScpiServer(() => _heater?.GetCurrentTemp() ?? 0f);
+                _scpiServer.Start();
+                btnScpiServer.Text = "停止 SCPI 服务器";
+            }
+            else
+            {
+                _scpiServer.Stop();
+                _scpiServer = null;
+                btnScpiServer.Text = "启动 SCPI 服务器";
+            }
+        }
+
+        private void btnTestCppDll_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                double pi = GetPi();
+                int sum = AddTwoIntegers(10, 20);
+                double processedTemp = ProcessTemperature(_heater?.GetCurrentTemp() ?? 25.0);
+
+                string msg = $"π = {pi:F6}\n" +
+                             $"10 + 20 = {sum}\n" +
+                             $"温度处理后 = {processedTemp:F2}";
+
+                AppendLog($"✅ C++ DLL 调用成功: {msg.Replace("\n", " | ")}");
+                MessageBox.Show(msg, "C++ DLL 测试结果");
+            }
+            catch (Exception ex)
+            {
+                AppendLog($"❌ DLL 调用失败: {ex.Message}");
+                MessageBox.Show($"DLL 调用失败：{ex.Message}", "错误");
+            }
         }
     }
 }

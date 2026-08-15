@@ -16,38 +16,76 @@ namespace TempSimulator
     //委托规定订阅者的方法长什么样子,可以定义在命名空间下
     public class Heater
     {
+
         public event TemperatureChangedHandler OnTemperatureChanged;
         //事件属于类的成员,得定义在类里面
         private float _currentTemp = 25f;
         //private访问修饰符,只有当前类内部可以访问
         //_是一种程序员之间的约定不是强制的,表示这是私有字段
         //25f声明25是float类型,是4字节浮点数,double是8字节浮点数,int是整数
+        private float _targetTemp = 25f;
         private Random _rand = new Random();
         //Random _rand= new Random()创建一个随机生成数实例,并将这个示例存储在_rand这个字段中
         //字段是类的成员,用于存储数据,放在方法外部,而方法内部称为局部变量
-        public void Start()
-        //无返回值要写void,C#的语法要求,其中()是方法的标志,可以传入参数可以不传入
+        private CancellationTokenSource _cts; 
+
+
+        public void SetTarget(float target)
         {
-            while (true)
-            {
-                //无限循环
-                float delta = (float)(_rand.NextDouble() * 13 - 5);
-                //_rand.NextDouble()其中_rand是实例一个随机数,NextDouble()调用实例里面的成员,随机0到1的小数
-                //因为返回的是double类型8字节浮点数,所以(float)将此数改为4字节浮点数
-                _currentTemp += delta;
-                if (_currentTemp < 0) _currentTemp = 0;
-                if (_currentTemp > 120) _currentTemp = 120;
-
-                if (_currentTemp > 80)
-                {
-                    OnTemperatureChanged?.Invoke(_currentTemp);
-                    //其中OnTemperatureChanged是事件,而?.表示如果时间没有被订阅则不要Invoke(_currentTemp)
-                    //如果有则触发Invoke(_currentTemp)把_currentTemp传给每个订阅者
-                }
-                Thread.Sleep(1000);
-                //当前线程暂定1秒
-            }
-
+            _targetTemp = Math.Clamp(target, 0, 120);
         }
+        public float GetTarget() => _targetTemp;
+        public void Start()
+        {
+            Stop(); // 确保没有旧循环
+            IsRunning = true;
+            _cts = new CancellationTokenSource();
+            Task.Run(() => RunLoop());
+        }
+        public void Stop()
+        {
+            if (_cts != null)
+            {
+                _cts.Cancel();
+                _cts.Dispose();
+                _cts = null;
+            }
+            IsRunning = false;
+        }
+        private void RunLoop()
+        {
+            try
+            {
+                while (!_cts.IsCancellationRequested)
+                {
+
+                    // 计算温度变化：向目标靠近，并加入随机扰动
+                    float diff = _targetTemp - _currentTemp;
+                    float step = 0.5f; // 每步最大调节幅度
+
+                    // 如果偏差较大，快速逼近；偏差小则慢速逼近
+                    float adjust = Math.Clamp(diff, -step, step);
+                    // 加入随机扰动（±0.5度）
+                    float noise = (float)(_rand.NextDouble() * 1.0 - 0.5);
+                    float delta = adjust + noise * 0.3f; // 扰动幅度较小
+
+                    _currentTemp += delta;
+                    // 限制范围
+                    _currentTemp = Math.Clamp(_currentTemp, 0, 120);
+
+                    // 触发事件（每次变化都触发）
+                    OnTemperatureChanged?.Invoke(_currentTemp);
+
+                    Thread.Sleep(1000);
+                }
+            }
+            finally
+            {
+                IsRunning = false;   // 👈 确保循环退出后重置状态
+            }
+        }
+        public float GetCurrentTemp() => _currentTemp;
+        public bool IsRunning { get; private set; } = false;
+
     }
 }
