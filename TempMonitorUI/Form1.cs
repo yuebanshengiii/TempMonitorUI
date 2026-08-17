@@ -26,7 +26,43 @@ namespace TempMonitorUI
             InitializeComponent();
 
         }
+        private void LoadYoloCoordsAndSend()
+        {
+            string jsonPath = @"C:\aixuexi\yolo_coords.json";
+            if (!File.Exists(jsonPath))
+            {
+                AppendLog("❌ 未找到 yolo_coords.json，请先运行 Python 脚本生成坐标");
+                return;
+            }
 
+            try
+            {
+                string jsonContent = File.ReadAllText(jsonPath);
+                var data = System.Text.Json.JsonSerializer.Deserialize<YoloResult>(jsonContent);
+
+                if (data != null)
+                {
+                    float x = (float)data.x;
+                    float y = (float)data.y;
+
+                    _modbusServer?.UpdateVisionCoords(x, y);
+                    AppendLog($"📤 YOLO 坐标已下发: X={x:F1}, Y={y:F1} ({data.name}, 置信度 {data.confidence:F2})");
+                }
+            }
+            catch (Exception ex)
+            {
+                AppendLog($"❌ 读取 JSON 失败: {ex.Message}");
+            }
+        }
+
+        // 定义一个简单的类用于 JSON 反序列化
+        private class YoloResult
+        {
+            public double x { get; set; }
+            public double y { get; set; }
+            public string name { get; set; }
+            public double confidence { get; set; }
+        }
         private void lblTemp_Click(object sender, EventArgs e)
         {
         }
@@ -275,6 +311,16 @@ namespace TempMonitorUI
                 AppendLog($"❌ DLL 调用失败: {ex.Message}");
                 MessageBox.Show($"DLL 调用失败：{ex.Message}", "错误");
             }
+        }
+
+        private void button1_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void btnLoadYolo_Click(object sender, EventArgs e)
+        {
+            LoadYoloCoordsAndSend();
         }
     }
 }

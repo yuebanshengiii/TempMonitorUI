@@ -46,6 +46,7 @@
             lblVisionResult = new Label();
             btnScpiServer = new Button();
             btnTestCppDll = new Button();
+            btnLoadYolo = new Button();
             ((System.ComponentModel.ISupportInitialize)numTargetTemp).BeginInit();
             ((System.ComponentModel.ISupportInitialize)numThreshold).BeginInit();
             SuspendLayout();
@@ -232,11 +233,23 @@
             btnTestCppDll.UseVisualStyleBackColor = true;
             btnTestCppDll.Click += btnTestCppDll_Click;
             // 
+            // btnLoadYolo
+            // 
+            btnLoadYolo.Font = new Font("Microsoft YaHei UI", 24F, FontStyle.Regular, GraphicsUnit.Point, 134);
+            btnLoadYolo.Location = new Point(386, 608);
+            btnLoadYolo.Name = "btnLoadYolo";
+            btnLoadYolo.Size = new Size(539, 71);
+            btnLoadYolo.TabIndex = 10;
+            btnLoadYolo.Text = "加载 YOLO 坐标并下发";
+            btnLoadYolo.UseVisualStyleBackColor = true;
+            btnLoadYolo.Click += btnLoadYolo_Click;
+            // 
             // Form1
             // 
             AutoScaleDimensions = new SizeF(11F, 24F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(1463, 892);
+            Controls.Add(btnLoadYolo);
             Controls.Add(btnTestCppDll);
             Controls.Add(btnScpiServer);
             Controls.Add(lblVisionResult);
@@ -283,5 +296,6 @@
         private Label lblVisionResult;
         private Button btnScpiServer;
         private Button btnTestCppDll;
+        private Button btnLoadYolo;
     }
 }
