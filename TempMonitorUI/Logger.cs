@@ -12,20 +12,31 @@ namespace TempMonitorUI
         private static readonly string _logFile = "app_log.txt";
         //定义了一个私有的,属于类本身的,只读字符串片段,
         //readonly使其在初始化后,无法在运行时被重新赋值
-
+        private static readonly long MaxLogFileSize = 5 * 1024 * 1024;
         public static void Write(string message)
         {
             string line = $"{DateTime.Now:HH:mm:ss} {message}";
-            //定义写入内容为 日期 传入参数 的格式
-            //局部变量,多个线程访问时,并不会同时赋值line,每个线程都有自己独立的line
-            //一般在方法体内部,不是类的成员,没有访问修饰符
             lock (_lock)
             {
+                // 检查日志文件大小，如果超过阈值则轮转
+                RotateLogFileIfNeeded();
+
                 File.AppendAllText(_logFile, line + Environment.NewLine);
-                //File.AppendAllText接收两个参数,文本路径和字符串
-                //作用是打开文本路径对应的文本,如果文本不存在会自动创建,并且将字符串加在最后面
-                //Environment.NewLine表示当前系统的换行符
             }
+        }
+        private static void RotateLogFileIfNeeded()
+        {
+            if (!File.Exists(_logFile))
+                return;
+
+            FileInfo fi = new FileInfo(_logFile);
+            if (fi.Length < MaxLogFileSize)
+                return;
+
+            // 轮转：重命名为带时间戳的文件
+            string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+            string archiveFileName = $"app_log_{timestamp}.txt";
+            File.Move(_logFile, archiveFileName);
         }
         public static void WriteError(string message, Exception ex = null)
         {

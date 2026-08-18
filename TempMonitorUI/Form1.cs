@@ -1,10 +1,16 @@
-﻿using Microsoft.Extensions.Configuration;
+﻿using Compunet.YoloV8;          // YoloV8 库的核心功能[reference:5]
+using Compunet.YoloV8.Plotting; // 用于在图片上绘制检测框
+using Microsoft.Extensions.Configuration;
 using OpenCvSharp;
 using OpenCvSharp.Extensions;
+using SixLabors.ImageSharp;
 using System.Drawing;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using TempSimulator;
+using Color = System.Drawing.Color;          // 让 Color 始终指向 System.Drawing
+using Image = SixLabors.ImageSharp.Image;    // 让 Image 始终指向 SixLabors.ImageSharp// 用于加载和处理图片
 
 namespace TempMonitorUI
 {
@@ -24,6 +30,7 @@ namespace TempMonitorUI
         private static extern double GetPi();
         public Form1()
         {
+
             InitializeComponent();
             var config = new ConfigurationBuilder()
        .SetBasePath(Directory.GetCurrentDirectory())
@@ -333,6 +340,56 @@ namespace TempMonitorUI
         private void btnLoadYolo_Click(object sender, EventArgs e)
         {
             LoadYoloCoordsAndSend();
+        }
+
+        private async void btnYoloDetect_Click(object sender, EventArgs e)
+        {
+            // 1. 选择要检测的图片
+            using OpenFileDialog openFileDialog = new OpenFileDialog();
+            openFileDialog.Filter = "图片文件|*.jpg;*.jpeg;*.png;*.bmp";
+            if (openFileDialog.ShowDialog() != DialogResult.OK)
+                return;
+
+            string imagePath = openFileDialog.FileName;
+
+            try
+            {
+                // 2. 加载模型（注意文件路径）
+                // 记得把 best.onnx 文件放到程序输出目录 (bin\Debug\net8.0-windows\)
+                string modelPath = "best.onnx";
+                using var predictor = new YoloPredictor(modelPath); // 创建预测器[reference:11]
+
+                // 3. 加载图片
+                using var image = Image.Load(imagePath); // 使用 ImageSharp 加载图片
+
+                // 4. 执行检测 (异步方法)
+                var result = await predictor.DetectAsync(image); // 异步检测，不阻塞 UI[reference:13]
+
+                // 5. 在图片上绘制检测框并保存
+                using var plottedImage = await result.PlotImageAsync(image); // 绘制检测框
+                string outputPath = Path.Combine(Path.GetDirectoryName(imagePath), "yolo_result.jpg");
+                plottedImage.Save(outputPath); // 保存结果图片
+                AppendLog($"✅ YOLO 检测完成，结果已保存至: {outputPath}");
+
+                // 6. 解析检测结果，提取第一个目标的坐标
+                if (result.Any())
+                {
+                    var firstBox = result.First();
+                    float centerX = firstBox.Bounds.X + firstBox.Bounds.Width / 2;
+                    float centerY = firstBox.Bounds.Y + firstBox.Bounds.Height / 2;
+                    AppendLog($"📍 检测到目标: {firstBox.Name}, 置信度: {firstBox.Confidence:F2}, 中心点: ({centerX:F1}, {centerY:F1})");
+                    // 7. 通过 Modbus 下发坐标
+                    _modbusServer?.UpdateVisionCoords(centerX, centerY);
+                }
+                else
+                {
+                    AppendLog("⚠️ 未检测到任何目标。");
+                }
+            } 
+            catch (Exception ex)
+            {
+                AppendLog($"❌ YOLO 检测失败: {ex.Message}");
+            }
         }
     }
 }

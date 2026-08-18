@@ -16,12 +16,9 @@ namespace TempMonitorUI
         {
             AppDomain.CurrentDomain.UnhandledException += (sender, e) =>
             {
-                Logger.WriteError("程序发生未处理异常", e.ExceptionObject as Exception);
-            };
-
-            AppDomain.CurrentDomain.UnhandledException += (sender, e) =>
-            {
-                MessageBox.Show($"程序启动失败：{e.ExceptionObject.ToString()}", "错误");
+                string errorMsg = $"程序发生未处理异常：{e.ExceptionObject.ToString()}";
+                Logger.WriteError(errorMsg);
+                MessageBox.Show($"程序发生错误，请查看日志文件 app_log.txt 了解详情。\n\n{errorMsg}", "程序错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
             };
 
             ApplicationConfiguration.Initialize();
