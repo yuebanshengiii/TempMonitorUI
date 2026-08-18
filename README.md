@@ -1,6 +1,9 @@
+
+
+
 # 工控上位机监控系统
 
-基于 C# WinForms 开发的工业上位机监控系统，集成 Modbus TCP 通信、SCPI 命令模拟、OpenCV 视觉定位、YOLO 目标检测和 WebAPI 接口，形成完整的“采集-控制-通信-展示”闭环。
+基于 C# WinForms 开发的工业上位机监控系统，集成 Modbus TCP 通信、SCPI 命令模拟、OpenCV 视觉定位、YOLO 目标检测和 WebAPI 接口，形成完整的"采集-控制-通信-展示"闭环。
 
 ## ✨ 功能特性
 
@@ -16,7 +19,11 @@
 
 ### 视觉定位
 - **OpenCV 模板匹配**：匹配度 > 0.8 返回像素坐标，自动写入 Modbus 寄存器
-- **YOLO 目标检测**：支持预训练模型推理，输出检测结果（类别 + 坐标 + 置信度），结果保存为 JSON 文件
+- **YOLO 目标检测**：
+  - 支持自定义数据集训练（杯子检测模型，mAP50 达 0.99）
+  - 训练好的模型导出为 ONNX 格式，集成到 C# 上位机
+  - 检测坐标（类别 + 置信度）实时显示，坐标自动写入 Modbus 寄存器
+  - 推理速度约 6.9ms，可满足实时检测需求
 
 ### 对外接口
 - WebAPI：`GET /temperature` 返回 JSON 格式实时温度（含时间戳）
@@ -38,7 +45,8 @@
 | 语言与框架 | C#、.NET 8、WinForms |
 | 通信协议 | TCP/IP、Modbus TCP、SCPI |
 | 数据库 | SQLite |
-| 计算机视觉 | OpenCVSharp、YOLO |
+| 计算机视觉 | OpenCVSharp、YOLO、ONNX |
+| AI 模型训练 | PyTorch、Ultralytics |
 | WebAPI | ASP.NET Core Minimal API |
 | 混合编程 | C++ DLL（P/Invoke） |
 | 版本控制 | Git、GitHub |
@@ -55,6 +63,8 @@ IndustrialControlSystem/
 ├── Logger.cs               # 文件日志
 ├── MathLib/                # C++ DLL 源码
 ├── appsettings.json        # 配置文件
+├── cup_dataset.yaml        # YOLO 数据集配置文件
+├── best.onnx               # YOLO 训练模型（ONNX 格式）
 └── bin/Release/            # 可执行文件
 ```
 
@@ -62,12 +72,19 @@ IndustrialControlSystem/
 
 ### 运行环境
 - Windows 10/11
-- .NET 8 桌面运行时（如果没有安装，程序会提示安装）
+- .NET 8 桌面运行时
 
 ### 下载运行
 1. 访问 [Releases](https://github.com/yuebanshengii/TempMonitorUI/releases) 页面
 2. 下载最新版本的 `TempMonitorUI_v1.0.zip`
 3. 解压后双击 `TempMonitorUI.exe` 即可运行
+
+### YOLO 模型配置
+1. 将训练好的 `best.onnx` 文件放入程序运行目录
+2. 点击"YOLO 检测"按钮，选择图片即可进行检测
+3. 检测结果（坐标 + 置信度）会显示在日志中，坐标自动写入 Modbus 寄存器
+
+> **训练自己的 YOLO 模型**：使用 Ultralytics 框架训练自定义数据集，导出为 ONNX 格式后替换 `best.onnx` 文件即可。
 
 ### 配置修改
 运行前可以通过修改 `appsettings.json` 调整参数：
@@ -88,3 +105,4 @@ IndustrialControlSystem/
 ## 📄 许可证
 
 本项目仅供学习与面试作品展示使用。
+```
