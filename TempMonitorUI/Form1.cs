@@ -1,9 +1,10 @@
-﻿using System.Drawing;
-using System.Threading.Tasks;
-using TempSimulator;
+﻿using Microsoft.Extensions.Configuration;
 using OpenCvSharp;
 using OpenCvSharp.Extensions;
+using System.Drawing;
 using System.Runtime.InteropServices;
+using System.Threading.Tasks;
+using TempSimulator;
 
 namespace TempMonitorUI
 {
@@ -24,7 +25,12 @@ namespace TempMonitorUI
         public Form1()
         {
             InitializeComponent();
-
+            var config = new ConfigurationBuilder()
+       .SetBasePath(Directory.GetCurrentDirectory())
+       .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+       .Build();
+            float threshold = config.GetValue<float>("Threshold", 80);
+            numThreshold.Value = (decimal)threshold;
         }
         private void LoadYoloCoordsAndSend()
         {
@@ -279,7 +285,13 @@ namespace TempMonitorUI
         {
             if (_scpiServer == null)
             {
-                _scpiServer = new ScpiServer(() => _heater?.GetCurrentTemp() ?? 0f);
+                var config = new ConfigurationBuilder()
+                    .SetBasePath(Directory.GetCurrentDirectory())
+                    .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+                    .Build();
+                int scpiPort = config.GetValue<int>("Scpi:Port", 5021);
+
+                _scpiServer = new ScpiServer(() => _heater?.GetCurrentTemp() ?? 0f, scpiPort);
                 _scpiServer.Start();
                 btnScpiServer.Text = "停止 SCPI 服务器";
             }

@@ -1,9 +1,11 @@
-﻿using NModbus;
+﻿using Microsoft.Extensions.Configuration;
+using NModbus;
 using NModbus.Data;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading.Tasks;
 using TempSimulator;
+using System.IO;
 
 namespace TempMonitorUI
 {
@@ -34,7 +36,15 @@ namespace TempMonitorUI
         {
             try
             {
-                _tcpListener = new TcpListener(IPAddress.Any, 502);
+                // 1. 加载配置文件，读取 Modbus 端口
+                var config = new ConfigurationBuilder()
+                    .SetBasePath(Directory.GetCurrentDirectory())
+                    .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+                    .Build();
+                int modbusPort = config.GetValue<int>("Modbus:Port", 502);
+
+                // 2. 使用读取到的端口创建 TcpListener
+                _tcpListener = new TcpListener(IPAddress.Any, modbusPort);
                 _tcpListener.Start();
 
                 var factory = new ModbusFactory();
@@ -52,7 +62,8 @@ namespace TempMonitorUI
 
                 _ = Task.Run(() => UpdateRegistersAsync());
 
-                Logger.Write("✅ Modbus TCP 服务器已启动 (端口 502)");
+                // 3. 日志输出使用变量端口号
+                Logger.Write($"✅ Modbus TCP 服务器已启动 (端口 {modbusPort})");
             }
             catch (Exception ex)
             {

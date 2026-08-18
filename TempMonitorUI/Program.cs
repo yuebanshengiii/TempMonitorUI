@@ -1,8 +1,12 @@
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using System.IO;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Configuration;
+
 namespace TempMonitorUI
 {
     internal static class Program
@@ -10,6 +14,16 @@ namespace TempMonitorUI
         [STAThread]
         static void Main()
         {
+            AppDomain.CurrentDomain.UnhandledException += (sender, e) =>
+            {
+                Logger.WriteError("程序发生未处理异常", e.ExceptionObject as Exception);
+            };
+
+            AppDomain.CurrentDomain.UnhandledException += (sender, e) =>
+            {
+                MessageBox.Show($"程序启动失败：{e.ExceptionObject.ToString()}", "错误");
+            };
+
             ApplicationConfiguration.Initialize();
 
             // 1. 先创建主窗体实例，以便获取 Heater 引用
@@ -42,8 +56,22 @@ namespace TempMonitorUI
                     timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")
                 });
             });
+            app.MapGet("/yolo", () =>
+            {
+                string jsonPath = @"C:\aixuexi\yolo_coords.json";
+                if (!File.Exists(jsonPath))
+                    return Results.NotFound(new { error = "No YOLO result available. Please run yolo_to_json.py first." });
 
-            app.Run("http://localhost:5000");
+                string json = File.ReadAllText(jsonPath);
+                // 直接返回 JSON 内容（已经是 JSON 格式）
+                return Results.Json(json);
+            });
+            var config = new ConfigurationBuilder()
+    .SetBasePath(Directory.GetCurrentDirectory())
+    .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+    .Build();
+            int webApiPort = config.GetValue<int>("WebApi:Port", 5000);
+            app.Run($"http://localhost:{webApiPort}");
         }
     }
 }

@@ -267,7 +267,7 @@
             Controls.Add(lblTemp);
             Controls.Add(btnStart);
             Name = "Form1";
-            Text = "Form1";
+            Text = "工业上位机监控系统 v1.0";
             Load += Form1_Load_1;
             ((System.ComponentModel.ISupportInitialize)numTargetTemp).EndInit();
             ((System.ComponentModel.ISupportInitialize)numThreshold).EndInit();
