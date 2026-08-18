@@ -83,7 +83,7 @@ IndustrialControlSystem/
 
 ## 📸 功能演示
 
-![主界面](docs/screenshot.png)
+![主界面](TempMonitorUI/docs/screenshot.png)
 
 ## 📄 许可证
 
