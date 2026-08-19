@@ -1,4 +1,4 @@
-﻿# 工控上位机监控系统
+# 工控上位机监控系统
 
 基于 C# WinForms 开发的工业上位机监控系统，集成 Modbus TCP 通信、SCPI 命令模拟、OpenCV 视觉定位、YOLO 目标检测和本地大模型调用，形成完整的“采集-控制-通信-展示-智能辅助”闭环。
 
@@ -123,6 +123,3 @@ IndustrialControlSystem/
 
 ![主界面](TempMonitorUI/docs/screenshot.png)
 
-## 📄 许可证
-
-本项目仅供学习与面试作品展示使用。
