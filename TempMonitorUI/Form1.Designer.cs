@@ -284,7 +284,7 @@
             btnAskLLM.Name = "btnAskLLM";
             btnAskLLM.Size = new Size(112, 34);
             btnAskLLM.TabIndex = 14;
-            btnAskLLM.Text = "发送";
+            btnAskLLM.Text = "问 AI";
             btnAskLLM.UseVisualStyleBackColor = true;
             btnAskLLM.Click += btnAskLLM_Click_1;
             // 
