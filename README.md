@@ -1,9 +1,6 @@
-
-
-
 # 工控上位机监控系统
 
-基于 C# WinForms 开发的工业上位机监控系统，集成 Modbus TCP 通信、SCPI 命令模拟、OpenCV 视觉定位、YOLO 目标检测和 WebAPI 接口，形成完整的"采集-控制-通信-展示"闭环。
+基于 C# WinForms 开发的工业上位机监控系统，集成 Modbus TCP 通信、SCPI 命令模拟、OpenCV 视觉定位、YOLO 目标检测和本地大模型调用，形成完整的“采集-控制-通信-展示-智能辅助”闭环。
 
 ## ✨ 功能特性
 
@@ -17,13 +14,19 @@
 - **SCPI 命令模拟器**（端口 5021）— 支持 `MEASure:VOLTage?`、`*IDN?` 等标准 SCPI 指令
 - **TCP/IP 自定义协议** — 长度头 + 数据体粘包/拆包处理
 
-### 视觉定位
+### 计算机视觉
 - **OpenCV 模板匹配**：匹配度 > 0.8 返回像素坐标，自动写入 Modbus 寄存器
 - **YOLO 目标检测**：
   - 支持自定义数据集训练（杯子检测模型，mAP50 达 0.99）
   - 训练好的模型导出为 ONNX 格式，集成到 C# 上位机
   - 检测坐标（类别 + 置信度）实时显示，坐标自动写入 Modbus 寄存器
   - 推理速度约 6.9ms，可满足实时检测需求
+
+### 本地大模型调用（新增）
+- 集成 Ollama 服务，在上位机中通过 HTTP API 调用本地大模型（Qwen-Coder）
+- 支持智能问答、代码生成等辅助功能
+- API 地址通过 `appsettings.json` 配置管理，支持不同环境灵活切换
+- 异步请求处理，界面不卡顿
 
 ### 对外接口
 - WebAPI：`GET /temperature` 返回 JSON 格式实时温度（含时间戳）
@@ -34,7 +37,7 @@
 - 线程安全日志系统（界面显示 + 文件同步写入），支持日志自动轮转
 
 ### 部署特性
-- 支持通过 `appsettings.json` 配置文件修改端口和阈值，无需重新编译
+- 支持通过 `appsettings.json` 配置文件修改端口、阈值和 Ollama 地址，无需重新编译
 - 全局异常捕获，程序不会因未处理异常而直接崩溃
 - 项目已发布可运行版本，支持直接下载使用
 
@@ -43,10 +46,11 @@
 | 类别 | 技术 |
 | :--- | :--- |
 | 语言与框架 | C#、.NET 8、WinForms |
-| 通信协议 | TCP/IP、Modbus TCP、SCPI |
-| 数据库 | SQLite |
+| 工业通信 | TCP/IP、Modbus TCP、SCPI |
 | 计算机视觉 | OpenCVSharp、YOLO、ONNX |
 | AI 模型训练 | PyTorch、Ultralytics |
+| 本地大模型 | Ollama、Qwen-Coder |
+| 数据库 | SQLite |
 | WebAPI | ASP.NET Core Minimal API |
 | 混合编程 | C++ DLL（P/Invoke） |
 | 版本控制 | Git、GitHub |
@@ -62,7 +66,7 @@ IndustrialControlSystem/
 ├── DbHelper.cs             # SQLite 数据操作
 ├── Logger.cs               # 文件日志
 ├── MathLib/                # C++ DLL 源码
-├── appsettings.json        # 配置文件
+├── appsettings.json        # 配置文件（端口、阈值、Ollama 地址）
 ├── cup_dataset.yaml        # YOLO 数据集配置文件
 ├── best.onnx               # YOLO 训练模型（ONNX 格式）
 └── bin/Release/            # 可执行文件
@@ -73,6 +77,7 @@ IndustrialControlSystem/
 ### 运行环境
 - Windows 10/11
 - .NET 8 桌面运行时
+- （可选）Ollama 服务（用于大模型调用功能）
 
 ### 下载运行
 1. 访问 [Releases](https://github.com/yuebanshengii/TempMonitorUI/releases) 页面
@@ -86,15 +91,31 @@ IndustrialControlSystem/
 
 > **训练自己的 YOLO 模型**：使用 Ultralytics 框架训练自定义数据集，导出为 ONNX 格式后替换 `best.onnx` 文件即可。
 
-### 配置修改
-运行前可以通过修改 `appsettings.json` 调整参数：
+### 本地大模型配置（可选）
+1. 安装并启动 [Ollama](https://ollama.com)
+2. 下载模型：`ollama run qwen-coder`（或你选择的其它模型）
+3. 在 `appsettings.json` 中配置 Ollama 地址：
+   ```json
+   {
+     "Ollama": {
+       "Url": "http://localhost:11434/api/generate"
+     }
+   }
+   ```
+4. 运行程序，点击"问 AI"按钮即可使用
+
+### 配置文件
+运行前可通过修改 `appsettings.json` 调整参数：
 
 ```json
 {
   "Modbus": { "Port": 502 },
   "WebApi": { "Port": 5000 },
   "Scpi": { "Port": 5021 },
-  "Threshold": 80
+  "Threshold": 80,
+  "Ollama": {
+    "Url": "http://localhost:11434/api/generate"
+  }
 }
 ```
 
