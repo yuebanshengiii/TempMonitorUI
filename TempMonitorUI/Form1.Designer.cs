@@ -48,6 +48,10 @@
             btnTestCppDll = new Button();
             btnLoadYolo = new Button();
             btnYoloDetect = new Button();
+            groupBox1 = new GroupBox();
+            txtQuestion = new TextBox();
+            btnAskLLM = new Button();
+            rtbAnswer = new RichTextBox();
             ((System.ComponentModel.ISupportInitialize)numTargetTemp).BeginInit();
             ((System.ComponentModel.ISupportInitialize)numThreshold).BeginInit();
             SuspendLayout();
@@ -256,11 +260,52 @@
             btnYoloDetect.UseVisualStyleBackColor = true;
             btnYoloDetect.Click += btnYoloDetect_Click;
             // 
+            // groupBox1
+            // 
+            groupBox1.Font = new Font("Microsoft YaHei UI", 24F, FontStyle.Regular, GraphicsUnit.Point, 134);
+            groupBox1.Location = new Point(12, 12);
+            groupBox1.Name = "groupBox1";
+            groupBox1.Size = new Size(281, 71);
+            groupBox1.TabIndex = 12;
+            groupBox1.TabStop = false;
+            groupBox1.Text = "大模型助手";
+            // 
+            // txtQuestion
+            // 
+            txtQuestion.Location = new Point(12, 89);
+            txtQuestion.Name = "txtQuestion";
+            txtQuestion.PlaceholderText = "请输入问题...";
+            txtQuestion.Size = new Size(281, 30);
+            txtQuestion.TabIndex = 13;
+            // 
+            // btnAskLLM
+            // 
+            btnAskLLM.Location = new Point(299, 87);
+            btnAskLLM.Name = "btnAskLLM";
+            btnAskLLM.Size = new Size(112, 34);
+            btnAskLLM.TabIndex = 14;
+            btnAskLLM.Text = "发送";
+            btnAskLLM.UseVisualStyleBackColor = true;
+            btnAskLLM.Click += btnAskLLM_Click_1;
+            // 
+            // rtbAnswer
+            // 
+            rtbAnswer.Location = new Point(12, 137);
+            rtbAnswer.Name = "rtbAnswer";
+            rtbAnswer.ReadOnly = true;
+            rtbAnswer.Size = new Size(281, 85);
+            rtbAnswer.TabIndex = 15;
+            rtbAnswer.Text = "";
+            // 
             // Form1
             // 
             AutoScaleDimensions = new SizeF(11F, 24F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(1463, 892);
+            Controls.Add(rtbAnswer);
+            Controls.Add(btnAskLLM);
+            Controls.Add(txtQuestion);
+            Controls.Add(groupBox1);
             Controls.Add(btnYoloDetect);
             Controls.Add(btnLoadYolo);
             Controls.Add(btnTestCppDll);
@@ -311,5 +356,9 @@
         private Button btnTestCppDll;
         private Button btnLoadYolo;
         private Button btnYoloDetect;
+        private GroupBox groupBox1;
+        private TextBox txtQuestion;
+        private Button btnAskLLM;
+        private RichTextBox rtbAnswer;
     }
 }

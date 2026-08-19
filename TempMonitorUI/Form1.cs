@@ -11,6 +11,9 @@ using System.Threading.Tasks;
 using TempSimulator;
 using Color = System.Drawing.Color;          // 让 Color 始终指向 System.Drawing
 using Image = SixLabors.ImageSharp.Image;    // 让 Image 始终指向 SixLabors.ImageSharp// 用于加载和处理图片
+using System.Net.Http;
+using System.Text;
+using System.Text.Json;
 
 namespace TempMonitorUI
 {
@@ -385,11 +388,90 @@ namespace TempMonitorUI
                 {
                     AppendLog("⚠️ 未检测到任何目标。");
                 }
-            } 
+            }
             catch (Exception ex)
             {
                 AppendLog($"❌ YOLO 检测失败: {ex.Message}");
             }
         }
+
+        private async void btnAskLLM_Click_1(object sender, EventArgs e)
+        {
+            string prompt = txtQuestion.Text.Trim();
+            if (string.IsNullOrEmpty(prompt))
+            {
+                AppendLog("⚠️ 请输入问题。");
+                return;
+            }
+
+            btnAskLLM.Enabled = false;
+            btnAskLLM.Text = "思考中...";
+            rtbAnswer.Text = "⏳ 正在请求模型...";
+
+            try
+            {
+                using var client = new HttpClient();
+                client.Timeout = TimeSpan.FromSeconds(60);
+
+                var request = new
+                {
+                    model = "qwen-coder",
+                    prompt = prompt,
+                    stream = false
+                };
+
+                string json = JsonSerializer.Serialize(request);
+                var content = new StringContent(json, Encoding.UTF8, "application/json"); 
+
+                string ollamaUrl = GetOllamaUrl();
+                var response = await client.PostAsync(ollamaUrl, content);
+
+                response.EnsureSuccessStatusCode();
+
+                string responseBody = await response.Content.ReadAsStringAsync();
+                var result = JsonSerializer.Deserialize<OllamaResponse>(responseBody);
+
+                if (result != null && !string.IsNullOrEmpty(result.response))
+                {
+                    rtbAnswer.Text = result.response;
+                    AppendLog($"🤖 模型回答: {result.response.Substring(0, Math.Min(30, result.response.Length))}...");
+                }
+                else
+                {
+                    rtbAnswer.Text = "⚠️ 未收到有效回答。";
+                }
+            }
+            catch (HttpRequestException ex)
+            {
+                rtbAnswer.Text = $"❌ 网络错误：{ex.Message}\n请确认 Ollama 服务是否运行。";
+                AppendLog($"❌ LLM 调用失败：{ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                rtbAnswer.Text = $"❌ 错误：{ex.Message}";
+                AppendLog($"❌ LLM 调用异常：{ex.Message}");
+            }
+            finally
+            {
+                btnAskLLM.Enabled = true;
+                btnAskLLM.Text = "问 AI";
+            }
+        }
+
+        // 用于反序列化 Ollama 响应
+        public class OllamaResponse
+        {
+            public string response { get; set; }
+            public bool done { get; set; }
+        }
+        private string GetOllamaUrl()
+        {
+            var config = new ConfigurationBuilder()
+                .SetBasePath(Directory.GetCurrentDirectory())
+                .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+                .Build();
+            return config.GetValue<string>("Ollama:Url", "http://localhost:11434/api/generate");
+        }
+
     }
 }
